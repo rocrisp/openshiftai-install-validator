@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # Get the operator name from user input
-OPERATOR_NAME=rhods-operator.2.5.0
+OPERATOR_NAME=$(oc get csv | awk '$1 ~ /^rhods-operator\./ {print $1; exit}')
 NAMESPACE="redhat-ods-operator"
 SUBSCRIPTION="rhods-operator"
 
@@ -30,7 +30,7 @@ fi
 
 # Fetch and display install plan details
 echo "Fetching install plan approval for the operator:"
-INSTALL_PLAN_NAME=$(oc get subscription "$SUBSCRIPTION" -n "$NAMESPACE" -o jsonpath='{.spec.installPlanApproval}' 2>/dev/null)
+INSTALL_PLAN_NAME=$(oc get subscription "$SUBSCRIPTION" -n "$NAMESPACE" -o jsonpath='{.status.installplan.name}' 2>/dev/null)
 if [ -z "$INSTALL_PLAN_NAME" ]; then
     echo "Install plan not found or insufficient permissions to view status"
     exit 1
@@ -45,7 +45,13 @@ if [ -z "$LAST_UPDATE_TIME" ]; then
     exit 1
 fi
 
-echo "Operator '$OPERATOR_NAME' is installed."
+# Fetch datasciencecluster details
+echo "Fetching datasciencecluster installedComponents status:"
+DATASCIENCECLUSTER=$(oc get datascienceclusters --all-namespaces default-dsc -oyaml | \
+awk '/installedComponents:/{flag=1; next} /phase:/{print; flag=0} flag')
+
+echo "Operator '$OPERATOR_NAME' is $OPERATOR_STATUS."
 echo "Subscription details: $SUBSCRIPTION_STATUS"
 echo "Install plan details: $INSTALL_PLAN_NAME"
+echo -e "Datasciencecluster details: \n$DATASCIENCECLUSTER"
 echo "Last modified: $LAST_UPDATE_TIME"
