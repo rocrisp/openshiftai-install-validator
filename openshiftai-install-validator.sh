@@ -1,9 +1,10 @@
 #!/bin/bash
 
-# Get the operator name from user input
+# Get the operator name
 OPERATOR_NAME=$(oc get csv | awk '$1 ~ /^rhods-operator\./ {print $1; exit}')
 NAMESPACE="redhat-ods-operator"
 SUBSCRIPTION="rhods-operator"
+DATASCIENCECLUSTER_NAME="default-dsc"
 
 if [ -z "$OPERATOR_NAME" ]; then
     echo "Usage: $0 <operator-name>"
@@ -46,12 +47,15 @@ if [ -z "$LAST_UPDATE_TIME" ]; then
 fi
 
 # Fetch datasciencecluster details
-echo "Fetching datasciencecluster installedComponents status:"
-DATASCIENCECLUSTER=$(oc get datascienceclusters --all-namespaces default-dsc -oyaml | \
-awk '/installedComponents:/{flag=1; next} /phase:/{print; flag=0} flag')
+echo "Fetching the status for datasciencecluster dashboard:"
+DATASCIENCECLUSTER_DASHBOARD=$(oc get datascienceclusters -n "$NAMESPACE" "$DATASCIENCECLUSTER_NAME" -o jsonpath='{.status.installedComponents.dashboard}' 2>/dev/null)
+if [ -z "$DATASCIENCECLUSTER_DASHBOARD" ]; then
+    echo "Datasciencecluster dashboard not found or insufficient permissions to view status"
+    exit 1
+fi
 
 echo "Operator '$OPERATOR_NAME' is $OPERATOR_STATUS."
 echo "Subscription details: $SUBSCRIPTION_STATUS"
 echo "Install plan details: $INSTALL_PLAN_NAME"
-echo -e "Datasciencecluster details: \n$DATASCIENCECLUSTER"
+echo "Datasciencecluster dashboard details: $DATASCIENCECLUSTER_DASHBOARD"
 echo "Last modified: $LAST_UPDATE_TIME"
